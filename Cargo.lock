@@ -4224,10 +4224,12 @@ name = "warp-web-app"
 version = "0.1.0"
 dependencies = [
  "bcrypt",
+ "chrono",
  "once_cell",
  "prisma-client-rust",
  "reqwest",
  "serde",
+ "serde_json",
  "tokio",
  "warp",
 ]
