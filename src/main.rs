@@ -2,23 +2,31 @@ mod prisma;
 mod prisma_client;
 mod handlers;
 mod filters;
+mod app;
 
-#[macro_use]
 extern crate serde_json;
+extern crate dioxus;
+use dioxus::prelude::*;
+use serde_json::json;
 
-use warp::Filter;
+use warp::{Filter, path::FullPath};
+
+#[derive(PartialEq, Props)]
+pub struct AppProps {
+    pub initial_path: String
+}
 
 #[tokio::main]
 async fn main() {
-    let home = warp::path::end()
-        .and(warp::get())
-        .map(|| {
-            format!("Welcome home!")
+    let app = warp::get()
+        .and(warp::path::full())
+        .map(|p: FullPath| {
+            println!("{}", p.as_str());
+            let mut vdom = VirtualDom::new_with_props::<AppProps>(app::app, AppProps { initial_path: p.as_str().to_string() });
+            let _ = vdom.rebuild();
+           
+            warp::reply::html(dioxus_ssr::render_vdom(&vdom))
         });
-
-    let hello = warp::path!("hello" / String)
-        .and(warp::get())
-        .and_then(handlers::hello_user); 
 
     let api = warp::path!("api" / "v1")
         .and(filters::new_user())
@@ -26,15 +34,20 @@ async fn main() {
 
     let routes = warp::any()
         .and(
-            home
-                .or(hello)
-                .or(api)
-                .or(filters::find_user_by_id())
+            api
+                .or(app)
         );
+
+    let port: u16 = match std::env::var(
+        "PORT"
+    ) {
+        Ok(x) => x.parse::<u16>().unwrap(),
+        _ => 3030,
+    };
 
     // blazingly fast testing 
     warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030))
+        .run(([127, 0, 0, 1], port))
         .await; 
 }
 
